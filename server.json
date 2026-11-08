@@ -1,0 +1,50 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.SynapCores/synapcores",
+  "title": "SynapCores",
+  "description": "AI-native database: SQL, vector search, Cypher graph, AutoML and agent memory as MCP tools.",
+  "websiteUrl": "https://synapcores.com",
+  "repository": {
+    "url": "https://github.com/SynapCores/synapcores-mcp",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@synapcores/mcp",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "SYNAPCORES_URL",
+          "description": "SynapCores gateway URL, e.g. http://127.0.0.1:8080",
+          "isRequired": true,
+          "isSecret": false,
+          "default": "http://127.0.0.1:8080"
+        },
+        {
+          "name": "SYNAPCORES_TOKEN",
+          "description": "SynapCores API key or JWT (or set SYNAPCORES_USERNAME and SYNAPCORES_PASSWORD)",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "SYNAPCORES_USERNAME",
+          "description": "SynapCores username, used with SYNAPCORES_PASSWORD when no token is set",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "SYNAPCORES_PASSWORD",
+          "description": "SynapCores password",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

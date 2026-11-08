@@ -1,0 +1,49 @@
+{
+  "name": "@synapcores/mcp",
+  "version": "1.0.0",
+  "mcpName": "io.github.SynapCores/synapcores",
+  "description": "MCP server for SynapCores, the AI-native database: SQL, vector search, graph (Cypher), AutoML and agent memory as tools for Claude, Cursor and any MCP client.",
+  "bin": {
+    "synapcores-mcp": "bin/synapcores-mcp.js"
+  },
+  "main": "src/bridge.js",
+  "files": [
+    "bin/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "smoke": "node scripts/smoke.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "synapcores",
+    "database",
+    "sql",
+    "vector-search",
+    "graph",
+    "cypher",
+    "automl",
+    "rag",
+    "agent-memory",
+    "claude",
+    "cursor"
+  ],
+  "homepage": "https://synapcores.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SynapCores/synapcores-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SynapCores/synapcores-mcp/issues"
+  },
+  "license": "MIT",
+  "author": "SynapCores (https://synapcores.com)"
+}
