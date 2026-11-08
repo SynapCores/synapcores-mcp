@@ -82,6 +82,16 @@ class Gateway {
       await this.login();
       r = await this.post(path, message, { Authorization: `Bearer ${this.token}` });
     }
+    if (r.status >= 400) {
+      // Gateway-level errors (bad token, forbidden, …) are not JSON-RPC; turn them into a clean error.
+      const j = r.json;
+      const detail = j && (typeof j.error === 'string' ? j.error : (j.error && j.error.message) || j.message);
+      throw new Error(
+        r.status === 401
+          ? `authentication failed (${detail || 'HTTP 401'}); check SYNAPCORES_TOKEN or SYNAPCORES_USERNAME/SYNAPCORES_PASSWORD`
+          : `gateway returned HTTP ${r.status}${detail ? `: ${detail}` : ''}`
+      );
+    }
     if (r.json) return r.json;
     if (r.status >= 200 && r.status < 300) return null; // e.g. 204 for notifications
     throw new Error(`gateway returned HTTP ${r.status}`);

@@ -162,3 +162,14 @@ test('--version prints the package version', async () => {
   await new Promise((r) => child.on('close', r));
   assert.strictEqual(out.trim(), require('../package.json').version);
 });
+
+test('an invalid token becomes a clean JSON-RPC error, never a raw gateway body', async (t) => {
+  const g = await startFakeGateway();
+  t.after(() => g.server.close());
+  const gw = new Gateway(cfg(g.url, { token: 'wrong' }));
+  const out = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":7,"method":"tools/list"}', gw));
+  assert.strictEqual(out.jsonrpc, '2.0');
+  assert.strictEqual(out.id, 7);
+  assert.match(out.error.message, /authentication failed/);
+  assert.ok(!('result' in out));
+});
