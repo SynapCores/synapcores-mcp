@@ -30,7 +30,7 @@ The engine provides 15 tools:
 | `generate_text` | Generate text with the engine's configured LLM |
 | `agent_soul` | Inspect the database's learned runs, episodes, goals and plans (administrator key) |
 
-The tools come from the engine, so they update when you upgrade SynapCores.
+The tools come from the engine, so they update when you upgrade SynapCores. If the engine isn't reachable, the server still starts and lists these 15 tools from a bundled copy (taken from SynapCores 2.4.8); tool calls then return an error asking you to start the engine.
 
 ## 1. Run SynapCores
 

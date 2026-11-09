@@ -4,7 +4,7 @@ const assert = require('node:assert');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
 const path = require('node:path');
-const { Gateway, handleLine, readConfig } = require('../src/bridge');
+const { Gateway, handleLine, readConfig, OFFLINE_TOOLS } = require('../src/bridge');
 
 /** Minimal fake SynapCores gateway. */
 function startFakeGateway({ expireFirstToken = false } = {}) {
@@ -128,9 +128,14 @@ test('parse errors and gateway errors become JSON-RPC errors', async (t) => {
   assert.match(err.error.message, /HTTP 500/);
 });
 
-test('missing credentials report a clear error and never crash', async () => {
+test('missing credentials: discovery works offline, tool calls report a clear error', async () => {
   const gw = new Gateway(cfg('http://127.0.0.1:1'));
-  const err = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":1,"method":"initialize"}', gw));
+  const init = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":1,"method":"initialize"}', gw));
+  assert.strictEqual(init.result.serverInfo.name, 'synapcores-mcp');
+  const err = JSON.parse(
+    await handleLine('{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query","arguments":{"sql":"SELECT 1"}}}', gw),
+  );
+  assert.strictEqual(err.id, 2);
   assert.match(err.error.message, /SYNAPCORES_API_KEY/);
 });
 
@@ -178,4 +183,129 @@ test('an invalid token becomes a clean JSON-RPC error, never a raw gateway body'
   assert.strictEqual(out.id, 7);
   assert.match(out.error.message, /authentication failed/);
   assert.ok(!('result' in out));
+});
+
+// ---- Offline fallback (no reachable engine) ----
+
+const EXPECTED_TOOLS = [
+  'describe_table', 'execute', 'list_tables', 'query', 'sql_manual', 'validate_query',
+  'train_model', 'predict', 'list_models', 'describe_model',
+  'semantic_search', 'embed_text', 'graph_query', 'generate_text', 'agent_soul',
+];
+const refusedFetch = async () => {
+  const e = new TypeError('fetch failed');
+  e.cause = { code: 'ECONNREFUSED' };
+  throw e;
+};
+
+test('bundled catalog has the 15 gateway tools with input schemas', () => {
+  assert.deepStrictEqual(OFFLINE_TOOLS.map((t) => t.name), EXPECTED_TOOLS);
+  for (const t of OFFLINE_TOOLS) {
+    assert.ok(t.description && t.description.length > 10, t.name);
+    assert.strictEqual(t.inputSchema.type, 'object', t.name);
+  }
+});
+
+test('engine unreachable: tools/list returns the bundled 15 tools', async () => {
+  const gw = new Gateway(cfg('http://127.0.0.1:1', { token: 'static' }));
+  const out = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":3,"method":"tools/list"}', gw));
+  assert.strictEqual(out.id, 3);
+  assert.deepStrictEqual(out.result.tools.map((t) => t.name), EXPECTED_TOOLS);
+});
+
+test('engine unreachable: initialize and ping answer locally, notifications stay silent', async () => {
+  const gw = new Gateway(cfg('http://engine.invalid', { token: 'static' }), refusedFetch);
+  const init = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}', gw));
+  assert.ok(init.result.protocolVersion);
+  assert.deepStrictEqual(init.result.capabilities, { tools: { listChanged: false } });
+  assert.strictEqual(init.result.serverInfo.version, require('../package.json').version);
+  assert.strictEqual(await handleLine('{"jsonrpc":"2.0","method":"notifications/initialized"}', gw), null);
+  assert.deepStrictEqual(JSON.parse(await handleLine('{"jsonrpc":"2.0","id":2,"method":"ping"}', gw)), {
+    jsonrpc: '2.0', id: 2, result: {},
+  });
+});
+
+test('engine unreachable: tools/call is a clear JSON-RPC error', async () => {
+  const gw = new Gateway(cfg('http://engine.invalid', { token: 'static' }), refusedFetch);
+  const out = JSON.parse(
+    await handleLine('{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"query","arguments":{"sql":"SELECT 1"}}}', gw),
+  );
+  assert.strictEqual(out.jsonrpc, '2.0');
+  assert.strictEqual(out.id, 5);
+  assert.strictEqual(out.error.code, -32000);
+  assert.match(out.error.message, /not reachable at http:\/\/engine\.invalid \(ECONNREFUSED\)/);
+  assert.match(out.error.message, /need a running SynapCores engine/);
+  assert.ok(!('result' in out));
+});
+
+test('engine unreachable: batches get per-message offline replies', async () => {
+  const gw = new Gateway(cfg('http://engine.invalid', { token: 'static' }), refusedFetch);
+  const out = JSON.parse(
+    await handleLine(
+      '[{"jsonrpc":"2.0","id":1,"method":"tools/list"},{"jsonrpc":"2.0","method":"n"},{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query"}}]',
+      gw,
+    ),
+  );
+  assert.deepStrictEqual(out.map((r) => r.id), [1, 2]);
+  assert.strictEqual(out[0].result.tools.length, 15);
+  assert.strictEqual(out[1].error.code, -32000);
+});
+
+test('engine timeout falls back for tools/list', async () => {
+  const hang = (url, opts) =>
+    new Promise((_, reject) => opts.signal.addEventListener('abort', () => reject(new Error('aborted'))));
+  const gw = new Gateway(cfg('http://10.255.255.1', { token: 'static', timeoutMs: 50 }), hang);
+  const out = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":1,"method":"tools/list"}', gw));
+  assert.strictEqual(out.result.tools.length, 15);
+  const call = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query"}}', gw));
+  assert.match(call.error.message, /timed out after 50 ms/);
+});
+
+test('live list wins whenever the engine is reachable (no sticky offline mode)', async (t) => {
+  const g = await startFakeGateway();
+  t.after(() => g.server.close());
+  let down = true;
+  const flaky = (url, opts) => (down ? refusedFetch() : globalThis.fetch(url, opts));
+  const gw = new Gateway(cfg(g.url, { token: 'static' }), flaky);
+  const offline = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":1,"method":"tools/list"}', gw));
+  assert.strictEqual(offline.result.tools.length, 15);
+  down = false;
+  const live = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":2,"method":"tools/list"}', gw));
+  assert.deepStrictEqual(live, { jsonrpc: '2.0', id: 2, result: { echo: 'tools/list' } });
+});
+
+test('auth failures are not treated as offline (engine reachable)', async (t) => {
+  const g = await startFakeGateway();
+  t.after(() => g.server.close());
+  const gw = new Gateway(cfg(g.url, { token: 'wrong' }));
+  const out = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":1,"method":"tools/list"}', gw));
+  assert.match(out.error.message, /authentication failed/);
+});
+
+test('CLI with no engine and no key: initialize + tools/list (15) + tools/call error', async () => {
+  const child = spawn(process.execPath, [path.join(__dirname, '..', 'bin', 'synapcores-mcp.js')], {
+    env: { PATH: process.env.PATH, SYNAPCORES_URL: 'http://127.0.0.1:1' },
+  });
+  let stdout = '';
+  child.stdout.on('data', (c) => (stdout += c));
+  child.stdin.write('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n');
+  child.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n');
+  child.stdin.write('{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n');
+  child.stdin.write('{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query","arguments":{"sql":"SELECT 1"}}}\n');
+  child.stdin.end();
+  const code = await new Promise((r) => child.on('close', r));
+  assert.strictEqual(code, 0);
+  const lines = stdout.trim().split('\n').map((l) => JSON.parse(l));
+  assert.deepStrictEqual(lines.map((l) => l.id), [1, 2, 3]);
+  assert.strictEqual(lines[1].result.tools.length, 15);
+  assert.strictEqual(lines[2].error.code, -32000);
+});
+
+test('a proxy 502/503/504 in front of a down engine falls back like a refused connection', async () => {
+  const proxyDown = async () => new Response('Bad Gateway', { status: 502 });
+  const gw = new Gateway(cfg('https://db.example.com', { token: 'static' }), proxyDown);
+  const list = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":1,"method":"tools/list"}', gw));
+  assert.strictEqual(list.result.tools.length, 15);
+  const call = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query"}}', gw));
+  assert.match(call.error.message, /HTTP 502/);
 });
