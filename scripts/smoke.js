@@ -2,8 +2,7 @@
 'use strict';
 /**
  * Live smoke test against a running SynapCores gateway.
- * Uses the same env vars as the server (SYNAPCORES_URL, SYNAPCORES_TOKEN or
- * SYNAPCORES_USERNAME/SYNAPCORES_PASSWORD). Prints tool names and a SELECT result.
+ * Uses the same env vars as the server (SYNAPCORES_URL, SYNAPCORES_API_KEY). Prints tool names and a SELECT result.
  */
 const { spawn } = require('node:child_process');
 const path = require('node:path');

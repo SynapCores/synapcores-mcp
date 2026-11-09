@@ -1,12 +1,13 @@
 name: publish
-# Push a tag like v1.0.0 to publish @synapcores/mcp to npm and server.json to the MCP Registry.
+# Push a tag like v1.0.0 to publish @synapcores/mcp to npm. The MCP Registry listing is a separate,
+# manual workflow (registry.yml) so a release tag never submits to a directory on its own.
 # Requires repository secret NPM_TOKEN (npm automation token for the @synapcores scope).
 on:
   push:
     tags: ['v*']
 permissions:
   contents: read
-  id-token: write # npm provenance + MCP Registry GitHub OIDC login
+  id-token: write # npm provenance
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -26,10 +27,3 @@ jobs:
       - run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Install mcp-publisher
-        run: |
-          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
-      - name: Publish to the MCP Registry
-        run: |
-          ./mcp-publisher login github-oidc
-          ./mcp-publisher publish

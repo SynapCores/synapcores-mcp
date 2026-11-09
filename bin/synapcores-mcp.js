@@ -14,12 +14,10 @@ MCP server (stdio) for the SynapCores AI-native database.
 
 Environment:
   SYNAPCORES_URL         Gateway URL (default http://127.0.0.1:8080)
-  SYNAPCORES_TOKEN       API key or JWT (recommended)
-  SYNAPCORES_USERNAME    Username, used with SYNAPCORES_PASSWORD when no token is set
-  SYNAPCORES_PASSWORD    Password
+  SYNAPCORES_API_KEY     SynapCores API key (sent as a Bearer token)
   SYNAPCORES_TIMEOUT_MS  Per-request timeout in ms (default 300000)
 
-Docs: https://docs.synapcores.com/mcp-setup/
+Source: https://github.com/SynapCores/synapcores-mcp
 `);
   process.exit(0);
 }

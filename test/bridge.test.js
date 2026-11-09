@@ -65,6 +65,12 @@ test('readConfig defaults and trailing slash', () => {
   assert.strictEqual(readConfig({ SYNAPCORES_URL: 'https://db.example.com///' }).url, 'https://db.example.com');
 });
 
+test('SYNAPCORES_API_KEY is the credential; SYNAPCORES_TOKEN is an alias', () => {
+  assert.strictEqual(readConfig({ SYNAPCORES_API_KEY: 'k1' }).token, 'k1');
+  assert.strictEqual(readConfig({ SYNAPCORES_TOKEN: 't1' }).token, 't1');
+  assert.strictEqual(readConfig({ SYNAPCORES_API_KEY: 'k1', SYNAPCORES_TOKEN: 't1' }).token, 'k1');
+});
+
 test('token auth forwards a request', async (t) => {
   const g = await startFakeGateway();
   t.after(() => g.server.close());
@@ -125,7 +131,7 @@ test('parse errors and gateway errors become JSON-RPC errors', async (t) => {
 test('missing credentials report a clear error and never crash', async () => {
   const gw = new Gateway(cfg('http://127.0.0.1:1'));
   const err = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":1,"method":"initialize"}', gw));
-  assert.match(err.error.message, /SYNAPCORES_TOKEN/);
+  assert.match(err.error.message, /SYNAPCORES_API_KEY/);
 });
 
 test('bad password does not leak the password', async (t) => {

@@ -1,0 +1,26 @@
+name: mcp-registry
+# Manual: publish server.json to the official MCP Registry (registry.modelcontextprotocol.io).
+# Run only after @synapcores/mcp at the same version is on npm. Uses GitHub OIDC, which
+# proves ownership of the io.github.SynapCores/* namespace because this repo is in the SynapCores org.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check server.json matches package.json
+        run: |
+          V="$(node -p "require('./package.json').version")"
+          test "$(node -p "require('./server.json').version")" = "$V"
+          test "$(node -p "require('./server.json').packages[0].version")" = "$V"
+          test "$(node -p "require('./package.json').mcpName")" = "$(node -p "require('./server.json').name")"
+      - name: Install mcp-publisher
+        run: curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+      - name: Publish to the MCP Registry
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish

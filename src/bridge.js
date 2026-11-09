@@ -2,10 +2,11 @@
 /**
  * SynapCores MCP server (stdio).
  *
- * MCP clients (Claude Desktop, Claude Code, Cursor, Windsurf, VS Code,
- * Zed, LangChain/CrewAI MCP adapters, ...) speak newline-delimited
- * JSON-RPC 2.0 over stdio. The SynapCores gateway hosts its MCP server
- * at POST /v1/mcp. This module connects the two.
+ * stdio MCP clients (for example Claude Code) speak newline-delimited
+ * JSON-RPC 2.0. The SynapCores gateway hosts its MCP server at
+ * POST /v1/mcp. This module connects the two.
+ *
+ * stdout carries only JSON-RPC messages; diagnostics go to stderr.
  *
  * Zero runtime dependencies: Node 18+ built-in fetch + readline.
  */
@@ -16,7 +17,7 @@ const DEFAULT_URL = 'http://127.0.0.1:8080';
 function readConfig(env = process.env) {
   return {
     url: (env.SYNAPCORES_URL || DEFAULT_URL).replace(/\/+$/, ''),
-    token: env.SYNAPCORES_TOKEN || null,
+    token: env.SYNAPCORES_API_KEY || env.SYNAPCORES_TOKEN || null,
     username: env.SYNAPCORES_USERNAME || null,
     password: env.SYNAPCORES_PASSWORD || null,
     timeoutMs: Number(env.SYNAPCORES_TIMEOUT_MS) || 300000,
@@ -61,7 +62,7 @@ class Gateway {
 
   async login() {
     if (!this.canLogin()) {
-      throw new Error('set SYNAPCORES_TOKEN, or SYNAPCORES_USERNAME and SYNAPCORES_PASSWORD');
+      throw new Error('set SYNAPCORES_API_KEY (or SYNAPCORES_USERNAME and SYNAPCORES_PASSWORD)');
     }
     const r = await this.post('/v1/auth/login', {
       username: this.config.username,
@@ -88,7 +89,7 @@ class Gateway {
       const detail = j && (typeof j.error === 'string' ? j.error : (j.error && j.error.message) || j.message);
       throw new Error(
         r.status === 401
-          ? `authentication failed (${detail || 'HTTP 401'}); check SYNAPCORES_TOKEN or SYNAPCORES_USERNAME/SYNAPCORES_PASSWORD`
+          ? `authentication failed (${detail || 'HTTP 401'}); check SYNAPCORES_API_KEY`
           : `gateway returned HTTP ${r.status}${detail ? `: ${detail}` : ''}`
       );
     }

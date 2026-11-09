@@ -2,7 +2,7 @@
   "name": "@synapcores/mcp",
   "version": "1.0.0",
   "mcpName": "io.github.SynapCores/synapcores",
-  "description": "MCP server for SynapCores, the AI-native database: SQL, vector search, graph (Cypher), AutoML and agent memory as tools for Claude, Cursor and any MCP client.",
+  "description": "MCP server (stdio) for SynapCores, the AI-native database: SQL, vector search, Cypher graph, AutoML and LLM tools for Claude Code and other MCP clients.",
   "bin": {
     "synapcores-mcp": "bin/synapcores-mcp.js"
   },
@@ -32,9 +32,7 @@
     "cypher",
     "automl",
     "rag",
-    "agent-memory",
-    "claude",
-    "cursor"
+    "claude"
   ],
   "homepage": "https://synapcores.com",
   "repository": {
