@@ -1,100 +1,122 @@
 {
-  "source": "SynapCores CE 2.4.8 gateway, POST /v1/mcp tools/list",
+  "source": "Tool names and input schemas: SynapCores CE gateway, POST /v1/mcp tools/list (2.4.8). Titles, descriptions, parameter descriptions and annotations rewritten 2026-11-20 against the 2.5.1 gateway implementation (crates/aidb-gateway/src/routes/mcp/tools.rs).",
   "tools": [
     {
       "name": "describe_table",
-      "description": "Get detailed schema information for a table including columns and constraints.",
+      "title": "Describe a table's columns",
+      "description": "Return the column definitions of one table: name, type, nullable, primary_key and default for each column. Use it before writing INSERT/UPDATE statements or WHERE filters, once `list_tables` has given you the table name; it reads the schema, not the data, unless include_samples=true, which adds up to 5 distinct example values per column (one SELECT DISTINCT per column).",
       "inputSchema": {
         "type": "object",
         "properties": {
           "table": {
             "type": "string",
-            "description": "Table name"
+            "description": "Table name, as returned by `list_tables`."
           },
           "database": {
             "type": "string",
-            "description": "Database name (optional)"
+            "description": "Database name; omit to use the default database."
           },
           "include_samples": {
             "type": "boolean",
-            "description": "Include sample values for each column (default: false)",
+            "description": "true = add up to 5 distinct sample values per column (default false).",
             "default": false
           }
         },
         "required": [
           "table"
         ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     },
     {
       "name": "execute",
-      "description": "Execute DML (INSERT/UPDATE/DELETE) or DDL (CREATE/ALTER/DROP) statements.",
+      "title": "Run a SQL write or schema change",
+      "description": "Run a SQL write (INSERT, UPDATE, DELETE) or schema change (CREATE, ALTER, DROP) against a SynapCores database and return rows_affected and execution_time_ms. Use `query` for SELECT/WITH, which this tool rejects, and `validate_query` or dry_run=true to check syntax without changing anything; Cypher statements sent here run on the graph, as with `graph_query`. Changes are permanent (DELETE and DROP remove data), and read-only API keys are refused.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "sql": {
             "type": "string",
-            "description": "SQL statement to execute"
+            "description": "The INSERT, UPDATE, DELETE, CREATE, ALTER or DROP statement to run."
           },
           "database": {
             "type": "string",
-            "description": "Database name (optional)"
+            "description": "Database name; omit to use the default database."
           },
           "dry_run": {
             "type": "boolean",
-            "description": "Validate without executing (default: false)",
+            "description": "true = only check the syntax and change nothing (default false).",
             "default": false
           }
         },
         "required": [
           "sql"
         ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
       }
     },
     {
       "name": "list_tables",
-      "description": "List all tables in the database.",
+      "title": "List tables",
+      "description": "List the tables in a SynapCores database, optionally filtered by a LIKE-style name pattern, and return {database, tables: [{name}], count}. Use it to discover what exists before writing SQL; use `describe_table` for a table's columns and types. Internal tables (names starting with \"_\") are hidden unless include_system=true. Read-only.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "database": {
             "type": "string",
-            "description": "Database name (optional, uses default)"
+            "description": "Database name; omit to use the default database."
           },
           "pattern": {
             "type": "string",
-            "description": "Filter pattern (SQL LIKE syntax)"
+            "description": "Name filter with LIKE wildcards: % matches any run of characters, _ matches one character (for example 'order%')."
           },
           "include_system": {
             "type": "boolean",
-            "description": "Include system tables (default: false)",
+            "description": "true = also list internal tables whose names start with '_' (default false).",
             "default": false
           }
         }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     },
     {
       "name": "query",
-      "description": "Execute a SELECT query and return results. Use this for reading data.",
+      "title": "Run a read-only SQL query",
+      "description": "Run a read-only SQL SELECT (or WITH ... SELECT) on a SynapCores database and return the rows. Use it to read data, including vector search over table columns with EMBED() and COSINE_SIMILARITY(); use `execute` for writes and schema changes (any other statement is rejected here), `graph_query` for Cypher, and `semantic_search` for vector collections. When the SQL has no LIMIT, LIMIT `limit` (default 1000, max 10000) and OFFSET `offset` are appended. Returns column names and types plus rows as JSON, or a Markdown table or CSV per `format`.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "sql": {
             "type": "string",
-            "description": "SQL SELECT query to execute"
+            "description": "A SELECT or WITH statement. Look up syntax and AI functions with `sql_manual`."
           },
           "database": {
             "type": "string",
-            "description": "Database name (optional, uses default if not specified)"
+            "description": "Database name; omit to use the default database."
           },
           "limit": {
             "type": "integer",
-            "description": "Maximum rows to return (default: 1000, max: 10000)",
+            "description": "Row cap appended as LIMIT when the SQL has none (default 1000, max 10000).",
             "default": 1000
           },
           "offset": {
             "type": "integer",
-            "description": "Number of rows to skip",
+            "description": "Rows to skip, appended as OFFSET (default 0); combine with `limit` to page through results.",
             "default": 0
           },
           "format": {
@@ -104,24 +126,31 @@
               "markdown",
               "csv"
             ],
-            "description": "Output format (default: rows)",
+            "description": "rows = JSON with columns and rows (default); markdown = a table; csv = comma-separated text.",
             "default": "rows"
           }
         },
         "required": [
           "sql"
         ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     },
     {
       "name": "sql_manual",
-      "description": "Get SQL syntax documentation and examples for SynapCores AIDB.",
+      "title": "SynapCores SQL reference",
+      "description": "Look up SynapCores SQL syntax and examples for one topic (for example SELECT, CREATE TABLE, EMBED, COSINE_SIMILARITY or ASK), or browse a whole category. Use it before writing SQL for `query` or `execute`, especially SynapCores-specific AI functions; it reads built-in documentation only and never touches your data. An unknown topic returns an error listing topics you can use.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "topic": {
             "type": "string",
-            "description": "Topic to look up (e.g., 'SELECT', 'CREATE TABLE', 'EMBED', 'COSINE_SIMILARITY')"
+            "description": "Statement or function to look up, for example 'SELECT', 'CREATE TABLE', 'EMBED' or 'COSINE_SIMILARITY'."
           },
           "category": {
             "type": "string",
@@ -132,53 +161,67 @@
               "types",
               "all"
             ],
-            "description": "Category to browse (default: all)",
+            "description": "Browse a whole category instead of one topic: statements, functions, operators, types or all (default all).",
             "default": "all"
           }
         }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     },
     {
       "name": "validate_query",
-      "description": "Validate SQL syntax without executing. Optionally returns execution plan.",
+      "title": "Check SQL without running it",
+      "description": "Check whether a SQL statement parses, without running it, and return {valid, statement_type, errors}. With include_plan=true, a SELECT also returns its execution plan (EXPLAIN), which helps spot slow queries. Use it before `execute` on writes you want to be sure of, or to debug a failing `query`; it never changes data.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "sql": {
             "type": "string",
-            "description": "SQL query to validate"
+            "description": "The SQL statement to check (any statement type)."
           },
           "include_plan": {
             "type": "boolean",
-            "description": "Include execution plan (default: false)",
+            "description": "true = also return the execution plan; applies to SELECT statements (default false).",
             "default": false
           }
         },
         "required": [
           "sql"
         ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     },
     {
       "name": "train_model",
-      "description": "Train an AutoML model on a table column. Wraps CREATE EXPERIMENT - the LLM does not need to know SQL. Trains the model, registers it under `model_name`, and returns the best score and chosen algorithm. Subsequent `predict` calls reference it by `model_name`.",
+      "title": "Train an AutoML model",
+      "description": "Train an AutoML model that predicts one column of a table from its other columns, without writing SQL: wraps CREATE EXPERIMENT, runs `max_trials` trials, keeps the best algorithm, registers it as `model_name`, and returns the best score (accuracy for classification, R² for regression) and the algorithm. Then call `predict` with that name, or `describe_model` for full metrics. Reusing an existing `model_name` replaces that model; more trials take longer and can score higher. Table, target and feature names must use only letters, digits and underscores.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "collection": {
             "type": "string",
-            "description": "Table/collection name containing training data"
+            "description": "Table that holds the training rows."
           },
           "target": {
             "type": "string",
-            "description": "Column to predict"
+            "description": "Column the model should predict."
           },
           "features": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Optional list of feature columns. Empty/omitted uses all columns except target."
+            "description": "Columns to learn from; omit or leave empty to use every column except `target`."
           },
           "task_type": {
             "type": "string",
@@ -188,45 +231,52 @@
               "regression",
               "classification"
             ],
-            "description": "Task type (default: binary_classification)",
+            "description": "binary_classification (default), multiclass_classification, regression, or classification (treated as binary).",
             "default": "binary_classification"
           },
           "max_trials": {
             "type": "integer",
-            "description": "Number of AutoML trials (default: 3, higher = better but slower)",
+            "description": "How many AutoML trials to run (default 3); more trials take longer and can find a better model.",
             "default": 3
           },
           "model_name": {
             "type": "string",
-            "description": "Optional model name (default: auto-generated as `{collection}_{target}_model`)"
+            "description": "Name to register the model under (default {collection}_{target}_model); an existing model with this name is replaced."
           }
         },
         "required": [
           "collection",
           "target"
         ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
       }
     },
     {
       "name": "predict",
-      "description": "Run a trained AutoML model against a list of input rows. Returns calibrated probabilities in [0, 1] for classification (positive-class probability) or numeric predictions for regression. v1.6.5 path: calibrated, polarity-correct.",
+      "title": "Predict with a trained model",
+      "description": "Score rows with a model trained by `train_model` and return {predictions, model_name, latency_ms, row_count}: calibrated probabilities in [0, 1] for classification (positive-class probability) or numbers for regression, one per input row. Use it for inference on rows you pass inline; use `describe_model` to check a model's metrics and features first. Every row must have the same columns, named like the training columns. Your tables are not modified.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "model_name": {
             "type": "string",
-            "description": "Model name (the one passed to `train_model`)"
+            "description": "Model name, as registered by `train_model` or listed by `list_models`."
           },
           "inputs": {
             "type": "array",
             "items": {
               "type": "object"
             },
-            "description": "Array of feature dicts, e.g. [{col1: v1, col2: v2}, ...]. All rows must have the same columns."
+            "description": "Rows to score, as objects mapping column names to values, e.g. [{\"col1\": 1, \"col2\": \"a\"}]; all rows need the same columns."
           },
           "return_proba": {
             "type": "boolean",
-            "description": "Return probabilities (true, default) vs raw predictions (currently ignored - AIDB v1.6.5 always returns calibrated proba for classification).",
+            "description": "Accepted for compatibility; classification models always return calibrated probabilities.",
             "default": true
           }
         },
@@ -234,86 +284,114 @@
           "model_name",
           "inputs"
         ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     },
     {
       "name": "list_models",
-      "description": "List all AutoML models trained by this tenant. Returns name, task type, accuracy, and creation timestamp. Pair with `describe_model` for full details.",
+      "title": "List AutoML models",
+      "description": "List the AutoML models this tenant has trained, filtered by status (default deployed) and optionally task type, and return {models: [{name, task_type, status, version, created_at}], count}. Use it to find a model name for `predict`; use `describe_model` for accuracy, hyperparameters and feature importance. Read-only.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "task_type": {
             "type": "string",
-            "description": "Optional filter: only return models with this task_type"
+            "description": "Only return models of this task type, e.g. binary_classification or regression."
           },
           "status": {
             "type": "string",
-            "description": "Optional filter: only return models with this status (default: deployed)",
+            "description": "Only return models with this status (default deployed).",
             "default": "deployed"
           }
         }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     },
     {
       "name": "describe_model",
-      "description": "Get full details of a trained AutoML model: algorithm, hyperparameters, metrics, feature names, and feature importance.",
+      "title": "Describe an AutoML model",
+      "description": "Get full details of one trained AutoML model: algorithm, hyperparameters, metrics, feature names, and feature importance when the algorithm provides it. Use it after `list_models` or `train_model` to judge a model before relying on `predict`. Read-only.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "model_name": {
             "type": "string",
-            "description": "Model name (the one passed to `train_model`)"
+            "description": "Model name, as registered by `train_model` or listed by `list_models`."
           },
           "include_feature_importance": {
             "type": "boolean",
-            "description": "Include feature importance scores (default: true)",
+            "description": "true = include per-feature importance scores (default true).",
             "default": true
           }
         },
         "required": [
           "model_name"
         ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     },
     {
       "name": "semantic_search",
-      "description": "Semantic / similarity search over a vector collection. The LLM does NOT need to know EMBED() or COSINE_SIMILARITY() SQL \u2014 this tool embeds the query, runs ANN/exact search, and returns the top-k matches by similarity.",
+      "title": "Semantic search in a vector collection",
+      "description": "Find the k items in a vector collection closest in meaning to a natural-language query: the tool embeds `query_text` with the engine's configured embedding model, searches the collection, and returns {results: [{id, similarity, metadata}], count, collection}. Use it for vector collections; for vectors stored in SQL table columns, use `query` with EMBED() and COSINE_SIMILARITY(). `filter` keeps only results whose metadata equals the given values and is applied after the top-k search, so fewer than k results can come back. Read-only.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "collection": {
             "type": "string",
-            "description": "Vector collection / space name"
+            "description": "Name of the vector collection to search."
           },
           "query_text": {
             "type": "string",
-            "description": "Natural-language query to embed and search with"
+            "description": "Natural-language text to search for; it is embedded for you."
           },
           "k": {
             "type": "integer",
-            "description": "Top-K results to return (default: 10, max: 1000)",
+            "description": "Number of nearest matches to return (default 10, max 1000).",
             "default": 10
           },
           "filter": {
             "type": "object",
-            "description": "Optional metadata equality predicates, e.g. {\"category\": \"electronics\"}. Applied client-side after search; for large collections, prefer pre-filtered queries."
+            "description": "Metadata values results must equal, e.g. {\"category\": \"electronics\"}; applied after the top-k search."
           }
         },
         "required": [
           "collection",
           "query_text"
         ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     },
     {
       "name": "embed_text",
-      "description": "Generate a vector embedding for a piece of text. Wraps EMBED() so the LLM doesn't need to know the SQL function.",
+      "title": "Embed text as a vector",
+      "description": "Turn a piece of text into an embedding vector with the engine's configured embedding model and return {embedding, dimensions, model}. Use it when you need the raw vector, for example to store it or compare it yourself; to search, use `semantic_search` for vector collections or `query` with EMBED() and COSINE_SIMILARITY() for table columns. Nothing is stored.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "text": {
             "type": "string",
-            "description": "Text to embed"
+            "description": "Text to embed, such as a sentence or short passage."
           },
           "model": {
             "type": "string",
@@ -322,75 +400,95 @@
               "bert-base",
               "bert-large"
             ],
-            "description": "Embedding model (default: configured default - minilm)"
+            "description": "Accepted for compatibility; the engine always uses its configured embedding model, reported in the response's `model` field."
           }
         },
         "required": [
           "text"
         ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     },
     {
       "name": "graph_query",
-      "description": "Run a Cypher query against the tenant's graph. Supports MATCH/MERGE/CREATE/SET/DELETE/UNWIND/UNION and `CALL gds.<algorithm>(...) YIELD ...` procedures.",
+      "title": "Run a Cypher graph query",
+      "description": "Run Cypher against a database's property graph and return {rows, execution_time_ms}: read with MATCH, write with CREATE, MERGE, SET and DELETE, combine with UNWIND and UNION, and run graph algorithms with `CALL gds.<algorithm>(...) YIELD ...`; separate several statements with `;`. Use it for relationship questions such as paths, neighbors and communities; use `query` for SQL tables. Write clauses change the graph permanently, and read-only API keys are refused for them.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "database": {
             "type": "string",
-            "description": "Selected tenant database; defaults to main."
+            "description": "Database whose graph to use (default main)."
           },
           "cypher": {
             "type": "string",
-            "description": "Cypher statement. Multiple `;`-separated statements supported."
+            "description": "Cypher text with literal values written inline; separate multiple statements with `;`."
           },
           "params": {
             "type": "object",
-            "description": "Parameters (currently informational only \u2014 inline literals work as expected; parameterized bindings land in v1.6.6)."
+            "description": "Not used for binding; write values inline in `cypher`."
           },
           "graph_name": {
             "type": "string",
-            "description": "Reserved for multi-graph tenants. Currently always the tenant's default graph."
+            "description": "Reserved; queries always run on the selected database's graph."
           }
         },
         "required": [
           "cypher"
         ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
       }
     },
     {
       "name": "generate_text",
-      "description": "Generate text from a prompt using the gateway's configured LLM. Wraps GENERATE() / the AI service manager so the LLM can chain generation into multi-step workflows (e.g. summarize predict() output).",
+      "title": "Generate text with the engine's LLM",
+      "description": "Generate text from a prompt with the LLM configured on the SynapCores engine and return {text, model, tokens_used, processing_time_ms}. Use it to summarize or explain results from other tools, such as `predict` or `query` output, inside a multi-step workflow; to generate per row inside SQL, use GENERATE() in `query`. It does not read or change your data, and output is sampled, so repeated calls can differ.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "prompt": {
             "type": "string",
-            "description": "Prompt text"
+            "description": "The full prompt text."
           },
           "model": {
             "type": "string",
-            "description": "Optional model override (default: gateway's configured completion model)"
+            "description": "Model name to use instead of the engine's configured completion model."
           },
           "max_tokens": {
             "type": "integer",
-            "description": "Max tokens to generate (default: 100)",
+            "description": "Maximum tokens to generate (default 100); raise it for longer answers.",
             "default": 100
           },
           "temperature": {
             "type": "number",
-            "description": "Sampling temperature (default: 0.7)",
+            "description": "Sampling temperature; lower is more focused (default 0.7).",
             "default": 0.7
           }
         },
         "required": [
           "prompt"
         ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false
       }
     },
     {
       "name": "agent_soul",
-      "description": "Inspect the current tenant/database's learned memory, episodes, rewards, runs, plans, goals, skills, policy or audit. Administrator required; read-only, paginated, no execution.",
+      "title": "Inspect an agent's learned state",
+      "description": "Inspect the current tenant/database's learned memory, episodes, rewards, runs, plans, goals, skills, policy or audit, one section per call. Use it to review or audit what an agent has learned and why it acts as it does; use `query` for ordinary SQL tables. Administrator required; read-only, paginated, no execution.",
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -402,7 +500,8 @@
           "database": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 128
+            "maxLength": 128,
+            "description": "Database whose agent state to inspect."
           },
           "section": {
             "type": "string",
@@ -419,19 +518,28 @@
               "audit",
               "tenant_fence",
               "tenant_audit"
-            ]
+            ],
+            "description": "Which record set to read."
           },
           "after": {
             "type": "string",
-            "maxLength": 1024
+            "maxLength": 1024,
+            "description": "Pagination cursor from the previous page; omit for the first page."
           },
           "limit": {
             "type": "integer",
             "minimum": 1,
             "maximum": 100,
-            "default": 50
+            "default": 50,
+            "description": "Items per page, 1 to 100 (default 50)."
           }
         }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
       }
     }
   ]
