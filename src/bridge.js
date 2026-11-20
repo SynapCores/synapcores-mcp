@@ -9,7 +9,9 @@
  * stdout carries only JSON-RPC messages; diagnostics go to stderr.
  *
  * Offline fallback: when the engine cannot be reached (no credentials configured,
- * connection refused, DNS failure, timeout), `initialize`, `ping` and `tools/list`
+ * connection refused, DNS failure, timeout, or a different service answering at that
+ * address with HTTP 404/405, such as a wrapper like mcp-proxy listening on the same
+ * port), `initialize`, `ping` and `tools/list`
  * are answered locally, `tools/list` from the bundled list of the 15 gateway tools
  * (src/offline-tools.json). Tool calls still need a running engine and return a
  * clear JSON-RPC error. When the engine is reachable, its live replies always win.
@@ -100,6 +102,10 @@ class Gateway {
       {},
       timeoutMs
     );
+    if (r.status === 404 || r.status === 405) {
+      // Something answered, but it has no login endpoint: not a SynapCores engine.
+      throw new UnreachableError(`no SynapCores engine at ${this.config.url} (HTTP ${r.status} on /v1/auth/login)`);
+    }
     if (r.status !== 200 || !r.json || !r.json.access_token) {
       throw new Error(`login failed (HTTP ${r.status})`);
     }
@@ -118,6 +124,11 @@ class Gateway {
     if (r.status === 502 || r.status === 503 || r.status === 504) {
       // A proxy or load balancer in front of the engine answered, but the engine itself is down.
       throw new UnreachableError(`SynapCores engine not reachable at ${this.config.url} (HTTP ${r.status})`);
+    }
+    if (r.status === 404 || r.status === 405) {
+      // Something answered at this address, but it has no MCP endpoint, so it is not a SynapCores
+      // engine (for example another service on port 8080). Treat it like no engine at all.
+      throw new UnreachableError(`no SynapCores MCP endpoint at ${this.config.url}${path} (HTTP ${r.status})`);
     }
     if (r.status >= 400) {
       // Gateway-level errors (bad token, forbidden, …) are not JSON-RPC; turn them into a clean error.

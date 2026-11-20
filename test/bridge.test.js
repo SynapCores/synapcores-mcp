@@ -309,3 +309,35 @@ test('a proxy 502/503/504 in front of a down engine falls back like a refused co
   const call = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query"}}', gw));
   assert.match(call.error.message, /HTTP 502/);
 });
+
+test('a service that is not a SynapCores engine (HTTP 404/405) falls back like no engine', async () => {
+  for (const status of [404, 405]) {
+    const notEngine = async () => new Response('Not Found', { status });
+    const gw = new Gateway(cfg('http://127.0.0.1:8080', { token: 'placeholder' }), notEngine);
+    const init = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}', gw));
+    assert.strictEqual(init.result.serverInfo.name, 'synapcores-mcp');
+    const list = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":2,"method":"tools/list"}', gw));
+    assert.strictEqual(list.result.tools.length, 15);
+    const call = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query"}}', gw));
+    assert.match(call.error.message, new RegExp(`no SynapCores MCP endpoint at http://127\\.0\\.0\\.1:8080/v1/mcp \\(HTTP ${status}\\)`));
+  }
+});
+
+test('another HTTP service on the engine port (like mcp-proxy) does not break discovery', async (t) => {
+  // Reproduces Glama's build test: mcp-proxy listens on 8080 inside the container and answers 404.
+  const other = http.createServer((req, res) => res.writeHead(404).end('Not Found'));
+  await new Promise((resolve) => other.listen(0, '127.0.0.1', resolve));
+  t.after(() => other.close());
+  const gw = new Gateway(cfg(`http://127.0.0.1:${other.address().port}`, { token: 'placeholder' }));
+  const init = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":0,"method":"initialize","params":{}}', gw));
+  assert.ok(init.result.instructions);
+  const list = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":1,"method":"tools/list"}', gw));
+  assert.strictEqual(list.result.tools.length, 15);
+});
+
+test('username/password against a non-engine falls back for discovery', async () => {
+  const notEngine = async () => new Response('Not Found', { status: 404 });
+  const gw = new Gateway(cfg('http://127.0.0.1:8080', { username: 'admin', password: 'pw' }), notEngine);
+  const list = JSON.parse(await handleLine('{"jsonrpc":"2.0","id":1,"method":"tools/list"}', gw));
+  assert.strictEqual(list.result.tools.length, 15);
+});
