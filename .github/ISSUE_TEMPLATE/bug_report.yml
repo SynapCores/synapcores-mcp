@@ -1,0 +1,32 @@
+name: Bug report
+description: Something in the MCP server doesn't work as expected
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: Output of `npx @synapcores/mcp --version`
+    validations:
+      required: true
+  - type: input
+    id: engine
+    attributes:
+      label: SynapCores engine version
+      placeholder: e.g. 2.5.1-ce
+  - type: input
+    id: client
+    attributes:
+      label: MCP client
+      placeholder: e.g. Claude Code, Claude Desktop, Glama
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: Include the JSON-RPC request and response if you have them (remove any API keys).
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
