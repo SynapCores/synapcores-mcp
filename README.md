@@ -35,8 +35,13 @@ The tools come from the engine, so they update when you upgrade SynapCores. If t
 ## 1. Run SynapCores
 
 ```bash
-curl -fsSL https://get.synapcores.com | sh
+curl -fsSL https://get.synapcores.com | SYNAPCORES_REF=mcp-readme sh
 ```
+
+On macOS (Apple Silicon):
+
+- No Homebrew yet? Install it first with the official command, `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`, then run the "Next steps" commands it prints.
+- When the installer finishes, run the start command it prints. The first start shows your admin password; then open http://localhost:8080.
 
 See [synapcores.com/download](https://synapcores.com/download) for other options. The gateway listens on `http://127.0.0.1:8080` by default.
 
