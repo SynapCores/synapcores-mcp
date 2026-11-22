@@ -38,16 +38,31 @@ The tools come from the engine, so they update when you upgrade SynapCores. If t
 curl -fsSL https://get.synapcores.com | SYNAPCORES_REF=mcp-readme sh
 ```
 
+Press Enter at each prompt to accept the defaults. SynapCores prints your admin password the first time it starts.
+
+On Linux (and Windows, in a WSL2 Ubuntu terminal), the installer starts SynapCores as a service. Show your admin password and API key:
+
+```bash
+sudo journalctl -u synapcores --no-pager | grep -A9 "FIRST-BOOT CREDENTIALS"
+```
+
 On macOS (Apple Silicon):
 
-- No Homebrew yet? Install it first with the official command, `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`, then run the "Next steps" commands it prints.
-- When the installer finishes, run the start command it prints. The first start shows your admin password; then open http://localhost:8080.
+1. No Homebrew yet? Install it first with the official command, `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`, then run the "Next steps" commands it prints.
+2. Run the one-liner above, then start SynapCores, now and at every login (use this instead of the start command the installer prints):
+   ```bash
+   launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.synapcores.gateway.plist
+   ```
+3. Show your admin password and API key (give the first start a few seconds):
+   ```bash
+   grep -A9 "FIRST-BOOT CREDENTIALS" ~/.synapcores/logs/gateway.err.log
+   ```
 
-See [synapcores.com/download](https://synapcores.com/download) for other options. The gateway listens on `http://127.0.0.1:8080` by default.
+Then open http://localhost:8080, sign in as `admin` and change the password. See [synapcores.com/download](https://synapcores.com/download) for other options. The gateway listens on `http://127.0.0.1:8080` by default.
 
 ## 2. Get an API key
 
-Use an API key, not a login token: API keys don't expire after 24 hours. The installer prints one at first boot. To create a dedicated key:
+Use an API key, not a login token: API keys don't expire after 24 hours. The first start prints one in the same FIRST-BOOT CREDENTIALS block, on the `OpenClaw Memory API key` line; the password command above shows it. To create a dedicated key:
 
 ```bash
 TOKEN=$(curl -s http://127.0.0.1:8080/v1/auth/login -H 'Content-Type: application/json' \
