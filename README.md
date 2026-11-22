@@ -49,11 +49,11 @@ sudo journalctl -u synapcores --no-pager | grep -A9 "FIRST-BOOT CREDENTIALS"
 On macOS (Apple Silicon):
 
 1. No Homebrew yet? Install it first with the official command, `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`, then run the "Next steps" commands it prints.
-2. Run the one-liner above, then start SynapCores, now and at every login (use this instead of the start command the installer prints):
+2. Run the one-liner above and press Enter at each prompt. The installer starts SynapCores (now and at every login) and prints your admin password. Answered n to "Start SynapCores now?" Start it with:
    ```bash
    launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.synapcores.gateway.plist
    ```
-3. Show your admin password and API key (give the first start a few seconds):
+3. Show your admin password and API key again (after a manual start, give it a few seconds):
    ```bash
    grep -A9 "FIRST-BOOT CREDENTIALS" ~/.synapcores/logs/gateway.err.log
    ```
