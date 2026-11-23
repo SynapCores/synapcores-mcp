@@ -2,11 +2,12 @@
 
 All notable changes to `@synapcores/mcp` are documented here.
 
-## Unreleased
+## 1.0.1 (2026-11-23)
 
-- README: the install one-liner carries `SYNAPCORES_REF=mcp-readme`, and a macOS note covers Homebrew (official install command) and the first start (admin password, http://localhost:8080).
-- Tool definitions: every tool now has a title, MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`), a description that says when to use it and which sibling tool to use instead, and a description on every parameter.
-- Discovery keeps working when another HTTP service answers on the engine port: an HTTP 404/405 from `/v1/mcp` or `/v1/auth/login` is treated like no engine, so `initialize`, `ping` and `tools/list` answer from the bundled catalog, and tool calls report a clear error.
+- Clearer tool definitions: every tool now has a title, MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`), a description that says when to use it and which sibling tool fits better, and a description on every parameter, so agents pick the right tool the first time.
+- More reliable discovery: when another HTTP service answers on the engine port, an HTTP 404/405 from `/v1/mcp` or `/v1/auth/login` is treated like no engine. `initialize`, `ping` and `tools/list` answer from the bundled catalog, and tool calls return a clear message asking you to start SynapCores.
+- Step-by-step setup in the README: exact commands to start SynapCores and show the admin password and API key on macOS (including Homebrew and the first start), Linux and Windows (WSL2). The install one-liner carries `SYNAPCORES_REF=mcp-readme`.
+- Community files: security policy, contributing guide, code of conduct, this changelog, and issue and pull request templates.
 
 ## 1.0.0 (2026-11-09)
 

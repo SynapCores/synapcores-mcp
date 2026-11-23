@@ -1,6 +1,6 @@
 {
   "name": "@synapcores/mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "mcpName": "io.github.SynapCores/synapcores",
   "description": "MCP server (stdio) for SynapCores, the AI-native database: SQL, vector search, Cypher graph, AutoML and LLM tools for Claude Code and other MCP clients.",
   "bin": {
