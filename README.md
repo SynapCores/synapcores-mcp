@@ -1,5 +1,7 @@
 # SynapCores MCP Server
 
+[![SynapCores/synapcores-mcp MCP server](https://glama.ai/mcp/servers/SynapCores/synapcores-mcp/badges/score.svg)](https://glama.ai/mcp/servers/SynapCores/synapcores-mcp)
+
 [SynapCores](https://synapcores.com) is an AI-native database: SQL, vector search, a Cypher graph, in-database AutoML and LLM generation in one self-hosted engine. The engine has a built-in [Model Context Protocol](https://modelcontextprotocol.io) server at `/v1/mcp`, so an AI assistant can query and build on your data directly.
 
 This package, `@synapcores/mcp`, is the stdio connector for that server. It is small, MIT-licensed and has zero dependencies (Node.js 18+).
